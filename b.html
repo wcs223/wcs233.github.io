@@ -1,0 +1,216 @@
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>故宫灾害风险普查房屋建筑群数据管理系统</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/themes/light/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/widgets/DistanceMeasurement2D.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/widgets/AreaMeasurement2D.css">
+  <script src="https://js.arcgis.com/4.21/"></script>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #topbar {
+      background: #fff;
+      padding: 10px;
+    }
+
+    .action-button {
+      font-size: 16px;
+      background-color: transparent;
+      border: 1px solid #d3d3d3;
+      color: #6e6e6e;
+      height: 32px;
+      width: 32px;
+      text-align: center;
+      box-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+    }
+
+    .action-button:hover,
+    .action-button:focus {
+      background: #0079c1;
+      color: #e4e4e4;
+    }
+
+    .active {
+      background: #0079c1;
+      color: #e4e4e4;
+    }
+
+    #legendDiv {
+      position: absolute;      /* 绝对定位 */
+      bottom: 50px;
+      left: 1px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 5px;
+      border-radius: 5px;
+      width: 200px;      /* 设置图例宽度 */
+      height: 200px;      /* 设置图例高度 */
+
+    }
+
+    #scaleBarDiv {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 5px;
+      background-color: rgba(255, 255, 255, 1);
+      border-radius: 5px;
+    }
+  </style>
+
+<body>
+  <div id="viewDiv"></div> <!-- 用于显示地图的div元素 -->
+  <div id="legendDiv"></div> <!-- 用于显示图例的div元素 -->
+
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/WebMap",
+      "esri/widgets/Home",
+      "esri/widgets/DistanceMeasurement2D",
+      "esri/widgets/AreaMeasurement2D",
+      "esri/widgets/Editor",
+      "esri/widgets/Legend",
+      "esri/widgets/ScaleBar",
+      "esri/widgets/CoordinateConversion",
+      "dojo/domReady!"
+    ], function (MapView, WebMap, Home, DistanceMeasurement2D, AreaMeasurement2D, 
+    Editor, Legend, ScaleBar, CoordinateConversion) {
+      let activeWidget = null;
+
+      // 创建一个WebMap实例
+      var webmap = new WebMap({
+        portalItem: {
+          id: "7f58841de31c46c1a706fbd17933f19f" // 使用特定的Web地图ID bbe9c6b36aa7456597f0d491657f87ec
+        }
+      });
+
+      // 创建一个MapView实例
+      var view = new MapView({
+        container: "viewDiv",
+        map: webmap
+      });
+     // 创建home
+      Showhome();
+      function Showhome() {
+        var homeBtn = new Home({
+          view: view,
+        });
+        view.ui.add(homeBtn, {
+          position: "top-left"
+        });
+      }
+      
+      view.ui.add("topbar", "top-right"); //将id为"topbar"的元素添加到视图的UI界面中，位置在右上角
+
+      //当id为"distanceButton"的按钮被点击时，执行以下操作：先将当前活动的测量工具设置为null。如果按钮没有被激活（没有"active"类），
+      //则设置活动的测量工具为"distance"；否则将活动按钮设置为null。
+      document.getElementById("distanceButton").addEventListener("click", function () { 
+
+        setActiveWidget(null);
+        if (!this.classList.contains("active")) {
+          setActiveWidget("distance");
+        } else {
+          setActiveButton(null);
+        }
+      });
+
+      document.getElementById("areaButton").addEventListener("click", function () {
+        setActiveWidget(null);
+        if (!this.classList.contains("active")) {
+          setActiveWidget("area");
+        } else {
+          setActiveButton(null);
+        }
+      });
+
+
+      //setActiveWidget函数根据传入的type参数，设置活动的测量工具：如果type为"distance"，则创建一个新的DistanceMeasurement2D测量工具，并添加到UI界面；激活对应的按钮。
+      //如果type为null，则移除当前活动的测量工具
+      function setActiveWidget(type) {
+        switch (type) {
+          case "distance": // 创建一个新的DistanceMeasurement2D测量工具
+            activeWidget = new DistanceMeasurement2D({
+              view: view
+            });
+            activeWidget.viewModel.start();// 跳过初始的'新测量'按钮
+
+            view.ui.add(activeWidget, "top-right");
+            setActiveButton(document.getElementById("distanceButton"));
+            break;
+          case "area":
+            activeWidget = new AreaMeasurement2D({
+              view: view
+            });
+            activeWidget.viewModel.start();
+            view.ui.add(activeWidget, "top-right");
+            setActiveButton(document.getElementById("areaButton"));
+            break;
+          case null:
+            if (activeWidget) {
+              view.ui.remove(activeWidget);
+              activeWidget.destroy();
+              activeWidget = null;
+            }
+            break;
+        }
+      }
+       //setActiveButton函数用于设置活动按钮：先聚焦到视图，以激活绘图的键盘快捷键。移除所有带有"active"类的元素的"active"类。
+       //如果传入了选中的按钮元素，则为其添加"active"类。
+      function setActiveButton(selectedButton) {
+        view.focus();
+        let elements = document.getElementsByClassName("active");
+        for (let i = 0; i < elements.length; i++) {
+          elements[i].classList.remove("active");
+        }
+        if (selectedButton) {
+          selectedButton.classList.add("active");
+        }
+      }
+
+      // 创建一个Editor实例并将其添加到地图视图中
+      var editor = new Editor({
+        view: view
+      });
+      view.ui.add(editor, "top-right");
+
+      // 创建一个Legend实例并将其添加到页面中的legendDiv元素中
+      var legend = new Legend({
+        view: view,
+        container: "legendDiv"
+      });
+      view.ui.add(legend, "bottom-left");
+
+      // 创建比例尺工具实例
+      var scaleBar = new ScaleBar({
+        view: view,
+        unit: "metric" // 可以根据需要设置比例尺的单位
+      });
+      view.ui.add(scaleBar, "bottom-right");
+      
+      // 坐标转换
+      var ccWidget = new CoordinateConversion({
+        view: view
+      });
+      view.ui.add(ccWidget, "bottom-left");
+    });
+  </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+    <div id="topbar">
+      <button class="action-button esri-icon-measure-line" id="distanceButton" type="button" title="距离测量"></button>
+      <button class="action-button esri-icon-measure-area" id="areaButton" type="button" title="面积测量"></button>
+    </div>
+  </body>
+
+  </html>
